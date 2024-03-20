@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUserCircle, faUser, faLock, faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
-import { Link } from 'react-router-dom'; 
-import { useUserLoginRTQMutation, useCreateNewUserAccountMutation } from './services/auth'; 
+import { Link } from 'react-router-dom';
+import { useUserLoginRTQMutation, useCreateNewUserAccountMutation } from './services/auth';
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from 'react-redux';
 import { setLoggedInUser } from './features/auth/authSlice';
@@ -17,21 +17,42 @@ export default function Form(props) {
     const [userLoginRTQ, { isLoading, isError, isSuccess }] = useUserLoginRTQMutation();
     const navigate = useNavigate();
     const dispatch = useDispatch();
-
     const [createNewUserAccount, { isLoading: isCreatingAccount, isError: accountCreationError, isSuccess: accountCreationSuccess }] = useCreateNewUserAccountMutation();
+
+  
 
     // Toggle password visibility
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
     };
-
+    const validateForm = () => {
+        const errors = {};
+        if (!userEmail.trim()) {
+            errors.email = 'Email is required';
+        } else if (!/^\S+@\S+\.\S+$/.test(userEmail)) {
+            errors.email = 'Invalid email format';
+        }
+        if (!userPassword.trim()) {
+            errors.password = 'Password is required';
+        }
+        if (isSignup && !userName.trim()) {
+            errors.name = 'Name is required';
+        }
+        if (isSignup && !userConfirmPassword.trim()) {
+            errors.confirmPassword = 'Confirm Password is required';
+        } else if (isSignup && userPassword !== userConfirmPassword) {
+            errors.confirmPassword = 'Passwords do not match';
+        }
+        setMessage('Fields are Required')
+        return Object.keys(errors).length === 0;
+    };
     // User Registration
     const createAccount = async () => {
         try {
-            if(userPassword != userConfirmPassword){
-                setMessage("Passwords do not match")
+            if (!validateForm()) {
                 return
             }
+
             let response = await createNewUserAccount({ name: userName, email: userEmail, password: userPassword, password_confirmation: userConfirmPassword })
             console.log(response.data.status);
             setMessage(response.data.message)
@@ -53,15 +74,16 @@ export default function Form(props) {
     // User Login
     const userLogin = async () => {
         let response = await userLoginRTQ({ email: userEmail, password: userPassword })
+        console.log(accountCreationError);
         console.log(response.data.status);
         if (response.data.status == "failed") {
             setMessage(response.data.message)
-        } 
+        }
         if (response.data.status == "success") {
             setMessage(response.data.message)
             const token = response.data.token;
             // Dispatch an action with the token
-           dispatch(setLoggedInUser({ token }));
+            dispatch(setLoggedInUser({ token }));
 
             setTimeout(() => {
                 navigate("/profile");
@@ -77,7 +99,7 @@ export default function Form(props) {
         <div className="container">
             <div className="form-box d-flex align-item-center">
                 {
-                    message && <div className="alert alert-success text-center">{message}</div>
+                    message && <div className={`alert text-center alert-${isError ? 'danger' : 'success' ? !accountCreationError ? 'danger' : 'success' : '' }`}>{message}</div>
                 }
                 <div className="header-form">
                     <h4 className="text-primary text-center">
